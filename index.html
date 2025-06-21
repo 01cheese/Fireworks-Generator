@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ultimate Canvas Fireworks 🎆</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg-gradient-start: #020017;
+      --bg-gradient-end: #0d0018;
+      --panel-bg: rgba(30, 30, 50, 0.85);
+      --primary-accent: #ffcc33;
+      --font: 'Montserrat', sans-serif;
+      --fps-color: #00ffcc;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+      font-family: var(--font);
+      color: #eee;
+    }
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #ui {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: var(--panel-bg);
+      border-radius: 16px;
+      padding: 20px;
+      width: 260px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.5);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    #ui.collapsed {
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #ui header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    #ui h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--primary-accent);
+    }
+
+    #toggleBtn, #showBtn {
+      background: none;
+      border: none;
+      color: var(--primary-accent);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .control {
+      margin-top: 14px;
+    }
+
+    .control label {
+      font-size: 13px;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input[type=range] {
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #ccc;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--primary-accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    select {
+      width: 100%;
+      padding: 6px;
+      border-radius: 6px;
+      border: none;
+      background: #222;
+      color: #eee;
+    }
+
+    #showBtn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: none;
+      z-index: 10;
+    }
+
+    #fps {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      font-size: 14px;
+      color: var(--fps-color);
+    }
+
+    #wm {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 12px;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <!-- Control Panel -->
+  <div id="ui">
+    <header>
+      <h2>Settings</h2>
+      <button id="toggleBtn">✕</button>
+    </header>
+    <div class="control">
+      <label><input type="checkbox" id="autoLaunch" checked> Auto-Launch</label>
+    </div>
+    <div class="control">
+      <label for="rate">Launch Rate (ms)</label>
+      <input type="range" id="rate" min="100" max="3000" value="1000">
+    </div>
+    <div class="control">
+      <label for="count">Particle Count</label>
+      <input type="range" id="count" min="50" max="500" value="150">
+    </div>
+    <div class="control">
+      <label for="type">Explosion Type</label>
+      <select id="type">
+        <option value="random">Random</option>
+        <option value="sphere">Sphere</option>
+        <option value="ring">Ring</option>
+        <option value="fountain">Fountain</option>
+        <option value="star">Star</option>
+      </select>
+    </div>
+    <div class="control">
+      <label for="palette">Color Palette</label>
+      <select id="palette">
+        <option value="rainbow">Rainbow</option>
+        <option value="warm">Warm</option>
+        <option value="cool">Cool</option>
+        <option value="pastel">Pastel</option>
+        <option value="mono">Mono</option>
+      </select>
+    </div>
+  </div>
+
+  <button id="showBtn">⚙</button>
+
+  <div id="fps">FPS: <span id="fpsVal">0</span></div>
+  <div id="wm">Powered by 10HL</div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    let cw, ch, stars = [];
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function resize() {
+      cw = canvas.width = innerWidth;
+      ch = canvas.height = innerHeight;
+      createStars();
+    }
+
+    function createStars() {
+      stars = Array.from({ length: 200 }, () => ({
+        x: rand(0, cw),
+        y: rand(0, ch),
+        r: rand(0.5, 1.5),
+        alpha: rand(0.1, 0.6)
+      }));
+    }
+
+    function drawStars() {
+      ctx.save();
+      stars.forEach(s => {
+        ctx.globalAlpha = s.alpha;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    const autoLaunch = document.getElementById('autoLaunch');
+    const rateInput = document.getElementById('rate');
+    const countInput = document.getElementById('count');
+    const typeSelect = document.getElementById('type');
+    const paletteSel = document.getElementById('palette');
+    const ui = document.getElementById('ui');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const showBtn = document.getElementById('showBtn');
+
+    toggleBtn.onclick = () => {
+      ui.classList.add('collapsed');
+      showBtn.style.display = 'block';
+    };
+    showBtn.onclick = () => {
+      ui.classList.remove('collapsed');
+      showBtn.style.display = 'none';
+    };
+
+    let launchInterval;
+    function startAuto() {
+      clearInterval(launchInterval);
+      if (autoLaunch.checked) {
+        launchInterval = setInterval(() => {
+          launchFirework(rand(50, cw - 50), rand(50, ch / 2));
+        }, +rateInput.value);
+      }
+    }
+    autoLaunch.onchange = startAuto;
+    rateInput.oninput = startAuto;
+    startAuto();
+
+    const gravity = 0.5, friction = 0.98;
+    const fireworks = [], particles = [];
+
+    class Firework {
+      constructor(sx, sy, tx, ty) {
+        Object.assign(this, { x: sx, y: sy, tx, ty });
+        this.dist = Math.hypot(tx - sx, ty - sy);
+        this.angle = Math.atan2(ty - sy, tx - sx);
+        this.speed = rand(6, 20);
+        this.traveled = 0;
+        this.track = Array(8).fill([sx, sy]);
+        this.hue = rand(0, 360);
+      }
+
+      update(i) {
+        this.track.pop();
+        this.track.unshift([this.x, this.y]);
+        const vx = Math.cos(this.angle) * this.speed;
+        const vy = Math.sin(this.angle) * this.speed;
+        this.x += vx;
+        this.y += vy;
+        this.traveled += Math.hypot(vx, vy);
+        if (this.traveled >= this.dist) {
+          this.explode();
+          fireworks.splice(i, 1);
+        }
+      }
+
+      draw() {
+        ctx.beginPath();
+        const last = this.track[this.track.length - 1];
+        ctx.moveTo(last[0], last[1]);
+        ctx.lineTo(this.x, this.y);
+        ctx.strokeStyle = `hsl(${this.hue},100%,70%)`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      explode() {
+        const type = typeSelect.value, cnt = +countInput.value;
+        for (let i = 0; i < cnt; i++) {
+          let ang, spd;
+          switch (type) {
+            case 'ring': ang = (2 * Math.PI) * (i / cnt); spd = rand(3, 5); break;
+            case 'fountain': ang = rand(-Math.PI / 3, -2 * Math.PI / 3); spd = rand(2, 6); break;
+            case 'star': ang = (2 * Math.PI) * (i / 5 / cnt); spd = rand(2, 6); break;
+            default: ang = rand(0, 2 * Math.PI); spd = rand(1, 7);
+          }
+          particles.push(new Particle(this.tx, this.ty, applyPalette(this.hue), ang, spd));
+        }
+      }
+    }
+
+    class Particle {
+      constructor(x, y, hue, angle, speed) {
+        Object.assign(this, { x, y, angle, speed, friction, gravity });
+        this.alpha = 1;
+        this.decay = rand(0.004, 0.02);
+        this.hue = hue;
+        this.light = rand(40, 80);
+        this.track = Array(5).fill([x, y]);
+      }
+
+      update(i) {
+        this.track.pop();
+        this.track.unshift([this.x, this.y]);
+        this.speed *= this.friction;
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed + this.gravity;
+        this.alpha -= this.decay;
+        if (this.alpha <= this.decay) particles.splice(i, 1);
+      }
+
+      draw() {
+        ctx.beginPath();
+        const last = this.track[this.track.length - 1];
+        ctx.moveTo(last[0], last[1]);
+        ctx.lineTo(this.x, this.y);
+        ctx.strokeStyle = `hsla(${this.hue},100%,${this.light}%,${this.alpha})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    function applyPalette(base) {
+      switch (paletteSel.value) {
+        case 'warm': return (base % 50) + rand(0, 30);
+        case 'cool': return (base + 140) % 360 + rand(0, 20);
+        case 'pastel': return base + rand(-15, 15);
+        case 'mono': return 200 + rand(-20, 20);
+        default: return rand(0, 360);
+      }
+    }
+
+    function launchFirework(x, y) {
+      fireworks.push(new Firework(cw / 2, ch, x, y));
+    }
+
+    window.addEventListener('click', e => launchFirework(e.clientX, e.clientY));
+
+    const fpsEl = document.getElementById('fpsVal');
+    let lastFrameTime = performance.now();
+    function updateFPS(now) {
+      const delta = now - lastFrameTime;
+      fpsEl.textContent = Math.round(1000 / delta);
+      lastFrameTime = now;
+    }
+
+    function animate(now) {
+      updateFPS(now);
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(2,0,25,0.3)';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.globalCompositeOperation = 'lighter';
+      drawStars();
+      fireworks.forEach((f, i) => { f.update(i); f.draw(); });
+      particles.forEach((p, i) => { p.update(i); p.draw(); });
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
